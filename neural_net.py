@@ -22,8 +22,6 @@ class RecurrentNet():
 
         self.model = None
         self.data = None
-        self.features = None
-        self.targets = None
 
         self.unique_char_set = None
         self.max_string_length = 0
@@ -46,7 +44,6 @@ class RecurrentNet():
         :return: Array of tweet messages.
         """
         try:
-            pass
             file = open('Documents/trump_tweets_2017.json', 'r')
 
             dataset_import = json.load(file)
@@ -66,8 +63,8 @@ class RecurrentNet():
                 new_record = '\1'
                 new_record += line['text']
                 new_record += '\0'
-                while len(new_record) < self.max_string_length:
-                    new_record += '\0'
+                # while len(new_record) < self.max_string_length:
+                #     new_record += '\0'
                 dataset.append(new_record)
 
             file.close()
@@ -85,20 +82,31 @@ class RecurrentNet():
         """
         self.model = keras.models.Sequential()
 
-        # Encode as RNN.
+        # LSTM layers for recurrent steps.
+        # Note: Masking (supposedly) hides null terminating pad character from weights.
+        self.model.add(keras.layers.Masking(
+            mask_value=self.char_to_int_dict['\0'],
+            input_shape=(None, len(self.unique_char_set))
+        ))
         self.model.add(keras.layers.LSTM(
-            100,
+            len(self.unique_char_set),
             input_shape=(None, len(self.unique_char_set)),
             return_sequences=True,
+            kernel_initializer="one",
         ))
-        # self.model.add(keras.layers.LSTM(
-        #     200,
-        #     input_shape=(None, len(self.unique_char_set)),
-        #     return_sequences=True,
-        # ))
+        self.model.add(keras.layers.Masking(
+            mask_value=self.char_to_int_dict['\0'],
+            input_shape=(None, len(self.unique_char_set))
+        ))
+        self.model.add(keras.layers.LSTM(
+            len(self.unique_char_set),
+            input_shape=(None, len(self.unique_char_set)),
+            return_sequences=True,
+            kernel_initializer="one",
+        ))
         self.model.add(keras.layers.Dropout(0.2))
 
-        # Apply dense layers for recurrent steps.
+        # Dense and activation layers for recurrent steps.
         self.model.add(keras.layers.TimeDistributed(keras.layers.Dense(len(self.unique_char_set))))
         self.model.add(keras.layers.Activation('softmax'))
         self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -151,7 +159,7 @@ class RecurrentNet():
         logger.info('Unique Char Count After Removal: {0}'.format(len(self.unique_char_set)))
         logger.info('Unique Char Set After Removal: {0}'.format(self.unique_char_set))
 
-    def train(self, num_epochs=100):
+    def train(self, num_epochs=1000):
         """
         Train neural net on data.
         """
@@ -176,13 +184,22 @@ class RecurrentNet():
 
             targets[record_index] = self.convert_to_onehot(output_sequence)
 
-        logger.info('Feature Onehot:\n{0}'.format(features))
-        logger.info('Target Onehot:\n{0}'.format(targets))
+        # logger.info('Feature Onehot:\n{0}'.format(features))
+        # logger.info('Target Onehot:\n{0}'.format(targets))
+
+        # Pad data values.
+        features = keras.preprocessing.sequence.pad_sequences(features, maxlen=self.max_string_length)
+        targets = keras.preprocessing.sequence.pad_sequences(targets, maxlen=self.max_string_length)
 
         for index in range(num_epochs):
             logger.info('Epoch {0}'.format(index))
             self.model.fit(features, targets, batch_size=self.max_string_length, verbose=1)
             self.generate_text()
+            logger.info('')
+            logger.info('')
+            if index % 10 == 0:
+                self.model.save_weights(
+                    'Documents/Weights/2LSTMS_Size{0}_atEpoch{1}'.format(len(self.unique_char_set), index))
 
     def convert_to_onehot(self, sequence):
         """
@@ -191,7 +208,8 @@ class RecurrentNet():
         :return: Onehot of sequence.
         """
         new_onehot = numpy.zeros((self.max_string_length, len(self.unique_char_set)))
-        for char_index in range(self.max_string_length):
+        # for char_index in range(self.max_string_length):
+        for char_index in range(len(sequence)):
             new_onehot[char_index][sequence[char_index]] = 1
         return new_onehot
 
@@ -226,39 +244,43 @@ class RecurrentNet():
         logger.info('Attempting to generate text.')
         generated_text = numpy.zeros((1, self.max_string_length, len(self.unique_char_set)))
         generated_text[0] = self.append_onehot(generated_text, 0, '\1')
+        debug_char_string = ''
+        debug_int_string = ''
         for index in range(self.max_string_length):
             try:
-                logger.info('Generated text after index {0}: {1}'.format(index, generated_text))
+                # logger.info('Generated text after index {0}: {1}'.format(index, generated_text))
                 # logger.info('Testing: {0}'.format(generated_text[:, :index + 1, :]))
                 # predict_value = numpy.argmax(self.model.predict(generated_text[:, :index + 1, :])[0], 1)[0]
                 # predict_value = numpy.argmax(self.model.predict(generated_text)[0][index + 1])
 
                 predict_value = self.model.predict(generated_text)[0]
-                try:
-                    predict_value_prev = numpy.argmax(predict_value[index - 1])
-                    logger.info('Prev Prediction: {0}({1})'.format(predict_value_prev, self.int_to_char_dict[predict_value_prev]))
-                except IndexError:
-                    pass
-                try:
-                    predict_value_curr = numpy.argmax(predict_value[index])
-                    logger.info('Curr Prediction: {0}({1})'.format(predict_value_curr, self.int_to_char_dict[predict_value_curr]))
-                except IndexError:
-                    pass
-                try:
-                    predict_value_next = numpy.argmax(predict_value[index + 1])
-                    logger.info('Next Prediction: {0}({1})'.format(predict_value_next, self.int_to_char_dict[predict_value_next]))
-                except IndexError:
-                    pass
+
+                # try:
+                #     predict_value_prev = numpy.argmax(predict_value[index - 1])
+                #     logger.info('Prev Prediction: {0}({1})'.format(predict_value_prev, self.int_to_char_dict[predict_value_prev]))
+                # except IndexError:
+                #     pass
+                # try:
+                #     predict_value_curr = numpy.argmax(predict_value[index])
+                #     logger.info('Curr Prediction: {0}({1})'.format(predict_value_curr, self.int_to_char_dict[predict_value_curr]))
+                # except IndexError:
+                #     pass
+                # try:
+                #     predict_value_next = numpy.argmax(predict_value[index + 1])
+                #     logger.info('Next Prediction: {0}({1})'.format(predict_value_next, self.int_to_char_dict[predict_value_next]))
+                # except IndexError:
+                #     pass
 
                 predict_value = numpy.argmax(predict_value[index])
 
-                logger.info('Predicted Value: {0}({1})'.format(predict_value, self.int_to_char_dict[predict_value]))
+                # logger.info('Predicted Value: {0}({1})'.format(predict_value, self.int_to_char_dict[predict_value]))
                 generated_text[0] = self.append_onehot(generated_text, (index + 1), self.int_to_char_dict[predict_value])
             except IndexError:
                 pass  # If index error occurs, then should be end of string anyway.
 
             # Test display of string.
-            debug_string = ''
+            debug_char_string = ''
+            debug_int_string = ''
             for test_index in range(len(generated_text[0])):
                 conversion_index = None
                 for onehot_index in range(len(generated_text[0][test_index])):
@@ -266,10 +288,12 @@ class RecurrentNet():
                         conversion_index = onehot_index
                         break
                 try:
-                    debug_string += self.int_to_char_dict[conversion_index]
+                    debug_char_string += self.int_to_char_dict[conversion_index]
+                    debug_int_string += str(conversion_index) + ' '
                 except KeyError:
                     break
-            logger.info('Full Generated String: {0}'.format(debug_string))
+        logger.info('Full Generated String: {0}'.format(debug_int_string))
+        logger.info('Full Generated String: {0}'.format(debug_char_string))
 
 
 class ConvNet():

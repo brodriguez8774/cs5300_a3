@@ -15,6 +15,6 @@ logger = logging.get_logger(__name__)
 
 
 recurrent_net = neural_net.RecurrentNet()
-recurrent_net.train()
+recurrent_net.train(num_epochs=100000)
 recurrent_net = None
 
