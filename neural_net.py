@@ -86,7 +86,16 @@ class RecurrentNet():
         self.model = keras.models.Sequential()
 
         # Encode as RNN.
-        self.model.add(keras.layers.LSTM(128, input_shape=(None, len(self.unique_char_set)), return_sequences=True))
+        self.model.add(keras.layers.LSTM(
+            100,
+            input_shape=(None, len(self.unique_char_set)),
+            return_sequences=True,
+        ))
+        # self.model.add(keras.layers.LSTM(
+        #     200,
+        #     input_shape=(None, len(self.unique_char_set)),
+        #     return_sequences=True,
+        # ))
         self.model.add(keras.layers.Dropout(0.2))
 
         # Apply dense layers for recurrent steps.
@@ -218,12 +227,32 @@ class RecurrentNet():
         generated_text = numpy.zeros((1, self.max_string_length, len(self.unique_char_set)))
         generated_text[0] = self.append_onehot(generated_text, 0, '\1')
         for index in range(self.max_string_length):
-            # logger.info('Generated text after index {0}: {1}'.format(index, generated_text))
-            # predict_value = numpy.argmax(self.model.predict(generated_text[:, :index + 1, :])[0], 1)
             try:
-                predict_value = numpy.argmax(self.model.predict(generated_text)[0][index + 1])
-                logger.info('Predicted Value: {0}'.format(self.int_to_char_dict[predict_value]))
-                # logger.info('Predicted Value: {0}({1})'.format(predict_value[0], self.int_to_char_dict[predict_value[0]]))
+                logger.info('Generated text after index {0}: {1}'.format(index, generated_text))
+                # logger.info('Testing: {0}'.format(generated_text[:, :index + 1, :]))
+                # predict_value = numpy.argmax(self.model.predict(generated_text[:, :index + 1, :])[0], 1)[0]
+                # predict_value = numpy.argmax(self.model.predict(generated_text)[0][index + 1])
+
+                predict_value = self.model.predict(generated_text)[0]
+                try:
+                    predict_value_prev = numpy.argmax(predict_value[index - 1])
+                    logger.info('Prev Prediction: {0}({1})'.format(predict_value_prev, self.int_to_char_dict[predict_value_prev]))
+                except IndexError:
+                    pass
+                try:
+                    predict_value_curr = numpy.argmax(predict_value[index])
+                    logger.info('Curr Prediction: {0}({1})'.format(predict_value_curr, self.int_to_char_dict[predict_value_curr]))
+                except IndexError:
+                    pass
+                try:
+                    predict_value_next = numpy.argmax(predict_value[index + 1])
+                    logger.info('Next Prediction: {0}({1})'.format(predict_value_next, self.int_to_char_dict[predict_value_next]))
+                except IndexError:
+                    pass
+
+                predict_value = numpy.argmax(predict_value[index])
+
+                logger.info('Predicted Value: {0}({1})'.format(predict_value, self.int_to_char_dict[predict_value]))
                 generated_text[0] = self.append_onehot(generated_text, (index + 1), self.int_to_char_dict[predict_value])
             except IndexError:
                 pass  # If index error occurs, then should be end of string anyway.
