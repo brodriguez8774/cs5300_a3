@@ -244,8 +244,8 @@ class RecurrentNet():
         logger.info('Attempting to generate text.')
         generated_text = numpy.zeros((1, self.max_string_length, len(self.unique_char_set)))
         generated_text[0] = self.append_onehot(generated_text, 0, '\1')
-        debug_char_string = ''
-        debug_int_string = ''
+        generated_char_string = ''
+        generated_int_string = ''
         for index in range(self.max_string_length):
             try:
                 # logger.info('Generated text after index {0}: {1}'.format(index, generated_text))
@@ -278,9 +278,9 @@ class RecurrentNet():
             except IndexError:
                 pass  # If index error occurs, then should be end of string anyway.
 
-            # Test display of string.
-            debug_char_string = ''
-            debug_int_string = ''
+            # Display generated string values.
+            generated_char_string = ''
+            generated_int_string = ''
             for test_index in range(len(generated_text[0])):
                 conversion_index = None
                 for onehot_index in range(len(generated_text[0][test_index])):
@@ -288,13 +288,17 @@ class RecurrentNet():
                         conversion_index = onehot_index
                         break
                 try:
-                    debug_char_string += self.int_to_char_dict[conversion_index]
-                    debug_int_string += str(conversion_index) + ' '
+                    generated_char_string += self.int_to_char_dict[conversion_index]
+                    generated_int_string += str(conversion_index) + ' '
                 except KeyError:
                     break
-        logger.info('Full Generated String: {0}'.format(debug_int_string))
-        logger.info('Full Generated String: {0}'.format(debug_char_string))
+        logger.info('Full Generated String: {0}'.format(generated_int_string))
+        logger.info('Full Generated String: {0}'.format(generated_char_string))
 
+    def import_weights(self, location):
+        self.model.load_weights(location)
+
+        self.model.summary()
 
 class ConvNet():
     """
