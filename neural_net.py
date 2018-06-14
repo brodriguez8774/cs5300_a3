@@ -55,16 +55,15 @@ class RecurrentNet():
                 new_record = len(line['text'])
                 if new_record > self.max_string_length:
                     self.max_string_length = new_record
-            self.max_string_length += 2
+            self.max_string_length += 3
             logger.info('Max record length: {0}'.format(self.max_string_length))
 
             # For each record in dataset, append until
             for line in dataset_import:
                 new_record = '\1'
                 new_record += line['text']
+                new_record += '\2'
                 new_record += '\0'
-                # while len(new_record) < self.max_string_length:
-                #     new_record += '\0'
                 dataset.append(new_record)
 
             file.close()
@@ -94,16 +93,16 @@ class RecurrentNet():
             return_sequences=True,
             kernel_initializer="one",
         ))
-        # self.model.add(keras.layers.Masking(
-        #     mask_value=self.char_to_int_dict['\0'],
-        #     input_shape=(None, len(self.unique_char_set))
-        # ))
-        # self.model.add(keras.layers.LSTM(
-        #     len(self.unique_char_set),
-        #     input_shape=(None, len(self.unique_char_set)),
-        #     return_sequences=True,
-        #     kernel_initializer="one",
-        # ))
+        self.model.add(keras.layers.Masking(
+            mask_value=self.char_to_int_dict['\0'],
+            input_shape=(None, len(self.unique_char_set))
+        ))
+        self.model.add(keras.layers.LSTM(
+            len(self.unique_char_set),
+            input_shape=(None, len(self.unique_char_set)),
+            return_sequences=True,
+            kernel_initializer="one",
+        ))
         self.model.add(keras.layers.Dropout(0.2))
 
         # Dense and activation layers for recurrent steps.
@@ -201,7 +200,7 @@ class RecurrentNet():
             logger.testresult('Epoch: {0}   Full Generated Char String: {1}'.format(index, generated_values[1]))
             if index % 10 == 0:
                 self.model.save_weights(
-                    'Documents/Weights/1LSTM_Size{0}_atEpoch{1}_{2}'
+                    'Documents/Weights/2LSTM_Size{0}_atEpoch{1}_{2}'
                         .format(len(self.unique_char_set), index, datetime.datetime.now().strftime('%y-%m-%d_%I:%M')))
 
     def convert_to_onehot(self, sequence):
@@ -225,12 +224,7 @@ class RecurrentNet():
         :return: Modified onehot.
         """
         new_row = numpy.zeros((1, len(self.unique_char_set)))
-        # try:
         new_row[0][self.char_to_int_dict[char]] = 1
-        # except KeyError:
-        #     new_row[0][char] = 1
-        # except IndexError:
-        #     new_row[0][char] = 1
 
         try:
             # logger.info('Old Row {0}: {1}'.format(row_index, old_onehot[0][row_index]))
@@ -252,29 +246,7 @@ class RecurrentNet():
         generated_int_string = ''
         for index in range(self.max_string_length):
             try:
-                # logger.info('Generated text after index {0}: {1}'.format(index, generated_text))
-                # logger.info('Testing: {0}'.format(generated_text[:, :index + 1, :]))
-                # predict_value = numpy.argmax(self.model.predict(generated_text[:, :index + 1, :])[0], 1)[0]
-                # predict_value = numpy.argmax(self.model.predict(generated_text)[0][index + 1])
-
                 predict_value = self.model.predict(generated_text)[0]
-
-                # try:
-                #     predict_value_prev = numpy.argmax(predict_value[index - 1])
-                #     logger.info('Prev Prediction: {0}({1})'.format(predict_value_prev, self.int_to_char_dict[predict_value_prev]))
-                # except IndexError:
-                #     pass
-                # try:
-                #     predict_value_curr = numpy.argmax(predict_value[index])
-                #     logger.info('Curr Prediction: {0}({1})'.format(predict_value_curr, self.int_to_char_dict[predict_value_curr]))
-                # except IndexError:
-                #     pass
-                # try:
-                #     predict_value_next = numpy.argmax(predict_value[index + 1])
-                #     logger.info('Next Prediction: {0}({1})'.format(predict_value_next, self.int_to_char_dict[predict_value_next]))
-                # except IndexError:
-                #     pass
-
                 predict_value = numpy.argmax(predict_value[index])
 
                 # logger.info('Predicted Value: {0}({1})'.format(predict_value, self.int_to_char_dict[predict_value]))
@@ -307,9 +279,3 @@ class RecurrentNet():
         """
         self.model.load_weights(location)
         self.model.summary()
-
-class ConvNet():
-    """
-    Convolutional Neural Net using the Keras library.
-    """
-
