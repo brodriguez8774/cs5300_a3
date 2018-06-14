@@ -3,7 +3,7 @@ Neural Net logic.
 """
 
 # System Imports.
-import json, keras, numpy
+import datetime, json, keras, numpy
 
 # User Class Imports.
 from resources import logging
@@ -94,16 +94,16 @@ class RecurrentNet():
             return_sequences=True,
             kernel_initializer="one",
         ))
-        self.model.add(keras.layers.Masking(
-            mask_value=self.char_to_int_dict['\0'],
-            input_shape=(None, len(self.unique_char_set))
-        ))
-        self.model.add(keras.layers.LSTM(
-            len(self.unique_char_set),
-            input_shape=(None, len(self.unique_char_set)),
-            return_sequences=True,
-            kernel_initializer="one",
-        ))
+        # self.model.add(keras.layers.Masking(
+        #     mask_value=self.char_to_int_dict['\0'],
+        #     input_shape=(None, len(self.unique_char_set))
+        # ))
+        # self.model.add(keras.layers.LSTM(
+        #     len(self.unique_char_set),
+        #     input_shape=(None, len(self.unique_char_set)),
+        #     return_sequences=True,
+        #     kernel_initializer="one",
+        # ))
         self.model.add(keras.layers.Dropout(0.2))
 
         # Dense and activation layers for recurrent steps.
@@ -192,14 +192,17 @@ class RecurrentNet():
         targets = keras.preprocessing.sequence.pad_sequences(targets, maxlen=self.max_string_length)
 
         for index in range(num_epochs):
+            logger.info('')
+            logger.info('')
             logger.info('Epoch {0}'.format(index))
             self.model.fit(features, targets, batch_size=self.max_string_length, verbose=1)
-            self.generate_text()
-            logger.info('')
-            logger.info('')
+            generated_values = self.generate_text()
+            logger.testresult('Epoch: {0}   Full Generated Int String: {1}'.format(index, generated_values[0]))
+            logger.testresult('Epoch: {0}   Full Generated Char String: {1}'.format(index, generated_values[1]))
             if index % 10 == 0:
                 self.model.save_weights(
-                    'Documents/Weights/2LSTMS_Size{0}_atEpoch{1}'.format(len(self.unique_char_set), index))
+                    'Documents/Weights/1LSTM_Size{0}_atEpoch{1}_{2}'
+                        .format(len(self.unique_char_set), index, datetime.datetime.now().strftime('%y-%m-%d_%I:%M')))
 
     def convert_to_onehot(self, sequence):
         """
@@ -240,6 +243,7 @@ class RecurrentNet():
     def generate_text(self):
         """
         Attempts to create new text based off of trained data.
+        :return: The full generated text. Is in tuple form, with
         """
         logger.info('Attempting to generate text.')
         generated_text = numpy.zeros((1, self.max_string_length, len(self.unique_char_set)))
@@ -292,12 +296,16 @@ class RecurrentNet():
                     generated_int_string += str(conversion_index) + ' '
                 except KeyError:
                     break
-        logger.info('Full Generated String: {0}'.format(generated_int_string))
-        logger.info('Full Generated String: {0}'.format(generated_char_string))
+        # logger.info('Full Generated String: {0}'.format(generated_int_string))
+        # logger.info('Full Generated String: {0}'.format(generated_char_string))
+        return (generated_int_string, generated_char_string)
 
     def import_weights(self, location):
+        """
+        Load in previously saved weights. If used, should be called before training.
+        :param location: Location of saved weights.
+        """
         self.model.load_weights(location)
-
         self.model.summary()
 
 class ConvNet():
