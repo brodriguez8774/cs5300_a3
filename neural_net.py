@@ -198,7 +198,7 @@ class RecurrentNet():
             generated_values = self.generate_text()
             logger.testresult('Epoch: {0}   Full Generated Int String: {1}'.format(index, generated_values[0]))
             logger.testresult('Epoch: {0}   Full Generated Char String: {1}'.format(index, generated_values[1]))
-            if index % 10 == 0:
+            if index % 50 == 0:
                 self.model.save_weights(
                     'Documents/Weights/2LSTM_Size{0}_atEpoch{1}_{2}'
                         .format(len(self.unique_char_set), index, datetime.datetime.now().strftime('%y-%m-%d_%I:%M')))
