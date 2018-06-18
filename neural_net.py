@@ -93,16 +93,16 @@ class RecurrentNet():
             return_sequences=True,
             kernel_initializer="one",
         ))
-        self.model.add(keras.layers.Masking(
-            mask_value=self.char_to_int_dict['\0'],
-            input_shape=(None, len(self.unique_char_set))
-        ))
-        self.model.add(keras.layers.LSTM(
-            len(self.unique_char_set),
-            input_shape=(None, len(self.unique_char_set)),
-            return_sequences=True,
-            kernel_initializer="one",
-        ))
+        # self.model.add(keras.layers.Masking(
+        #     mask_value=self.char_to_int_dict['\0'],
+        #     input_shape=(None, len(self.unique_char_set))
+        # ))
+        # self.model.add(keras.layers.LSTM(
+        #     len(self.unique_char_set),
+        #     input_shape=(None, len(self.unique_char_set)),
+        #     return_sequences=True,
+        #     kernel_initializer="one",
+        # ))
         self.model.add(keras.layers.Dropout(0.2))
 
         # Dense and activation layers for recurrent steps.
