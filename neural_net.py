@@ -17,7 +17,7 @@ class RecurrentNet():
     """
     Recurrent Neural Net using the Keras library.
     """
-    def __init__(self):
+    def __init__(self, data_source='trump'):
         logger.info('Starting Recurrent Net.')
 
         self.model = None
@@ -28,14 +28,14 @@ class RecurrentNet():
         self.char_to_int_dict = {}
         self.int_to_char_dict = {}
 
-        self.import_data()
+        self.import_data(data_source)
         self.get_character_set()
         self.build_architecture()
 
     def __del__(self):
         logger.info('Recurrent Net finished.')
 
-    def import_data(self):
+    def import_data(self, data_source='trump'):
         """
         Read through and import contents of tweets.
 
@@ -43,8 +43,18 @@ class RecurrentNet():
         Trump Tweets were chosen due to being generally one of the most documented and well archived accounts.
         :return: Array of tweet messages.
         """
+        if data_source == 'trump':
+            logger.info('Using Trump Tweet Dataset.')
+            file_location = 'Documents/trump_tweets_2017.json'
+        elif data_source == 'alice':
+            logger.info('Using Alice in Wonderland Dataset.')
+            file_location = 'Documents/alice.json'
+        else:
+            logger.error('Unknown data source.')
+            exit(1)
+
         try:
-            file = open('Documents/trump_tweets_2017.json', 'r')
+            file = open(file_location, 'r')
 
             dataset_import = json.load(file)
             dataset = []
@@ -75,6 +85,7 @@ class RecurrentNet():
             logger.error('Error reading file.')
             logger.error(Exception, exc_info=True)
 
+
     def build_architecture(self):
         """
         Build neural net layout.
@@ -85,24 +96,29 @@ class RecurrentNet():
         # Note: Masking (supposedly) hides null terminating pad character from weights.
         self.model.add(keras.layers.Masking(
             mask_value=self.char_to_int_dict['\0'],
-            input_shape=(None, len(self.unique_char_set))
+            input_shape=(self.max_string_length, len(self.unique_char_set))
         ))
         self.model.add(keras.layers.LSTM(
             len(self.unique_char_set),
-            input_shape=(None, len(self.unique_char_set)),
+            input_shape=(self.max_string_length, len(self.unique_char_set)),
             return_sequences=True,
             kernel_initializer="one",
         ))
-        # self.model.add(keras.layers.Masking(
-        #     mask_value=self.char_to_int_dict['\0'],
-        #     input_shape=(None, len(self.unique_char_set))
-        # ))
-        # self.model.add(keras.layers.LSTM(
-        #     len(self.unique_char_set),
-        #     input_shape=(None, len(self.unique_char_set)),
-        #     return_sequences=True,
-        #     kernel_initializer="one",
-        # ))
+        self.model.add(keras.layers.Dropout(0.2))
+        self.model.add(keras.layers.LSTM(
+            len(self.unique_char_set),
+            return_sequences=True,
+        ))
+        self.model.add(keras.layers.Dropout(0.2))
+        self.model.add(keras.layers.LSTM(
+            len(self.unique_char_set),
+            return_sequences=True,
+        ))
+        self.model.add(keras.layers.Dropout(0.2))
+        self.model.add(keras.layers.LSTM(
+            len(self.unique_char_set),
+            return_sequences=True,
+        ))
         self.model.add(keras.layers.Dropout(0.2))
 
         # Dense and activation layers for recurrent steps.
@@ -195,12 +211,13 @@ class RecurrentNet():
             logger.info('')
             logger.info('Epoch {0}'.format(index))
             self.model.fit(features, targets, batch_size=self.max_string_length, verbose=1)
-            generated_values = self.generate_text()
-            logger.testresult('Epoch: {0}   Full Generated Int String: {1}'.format(index, generated_values[0]))
-            logger.testresult('Epoch: {0}   Full Generated Char String: {1}'.format(index, generated_values[1]))
+            if index % 10 == 0:
+                generated_values = self.generate_text()
+                logger.testresult('Epoch: {0}   Full Generated Int String: {1}'.format(index, generated_values[0]))
+                logger.testresult('Epoch: {0}   Full Generated Char String: {1}'.format(index, generated_values[1]))
             if index % 50 == 0:
                 self.model.save_weights(
-                    'Documents/Weights/2LSTM_Size{0}_atEpoch{1}_{2}'
+                    'Documents/Weights/4LSTM_Size{0}_atEpoch{1}_{2}'
                         .format(len(self.unique_char_set), index, datetime.datetime.now().strftime('%y-%m-%d_%I:%M')))
 
     def convert_to_onehot(self, sequence):
